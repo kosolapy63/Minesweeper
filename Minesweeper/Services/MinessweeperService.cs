@@ -1,28 +1,31 @@
-﻿using Microsoft.AspNetCore.DataProtection.KeyManagement;
+﻿using Microsoft.Extensions.Caching.Memory;
 using Minesweeper.DTO;
-using System;
-using System.Text;
 
-namespace Minesweeper;
-
-public interface IMinessweeperService
-{  
-    GameResponse StartNewGame(int width, int height, int count_mines);
-    GameResponse GameTurn(Guid gameId, int row, int col);
-}
+namespace Minesweeper.Services;
 
 public class MinessweeperService : IMinessweeperService
 {
     private const int MaxFieldSize = 30;
-    private const int MinFieldSize = 2;
-    private readonly Dictionary<Guid, Game> _games;
+    private const int MinFieldSize = 2;    
+    private readonly IMemoryCache _cache;
+    private static readonly (int dx, int dy)[] Directions = 
+   {
+        (0, 1),   // Вниз
+        (-1, 1),  // Вниз-влево
+        (1, 1),   // Вниз-вправо
+        (-1, 0),  // Влево
+        (1, 0),   // Вправо
+        (0, -1),  // Вверх
+        (1, -1),  // Вверх-вправо
+        (-1, -1)  // Вверх-влево
+   };
 
-    public MinessweeperService(Dictionary<Guid, Game> games)
+    public MinessweeperService(IMemoryCache cache)
     {
-        _games = games;
+        _cache = cache;
     }
 
-    public List<List<string>> Convert2DCellArrayTo2DList(Cell[,] field)
+    private List<List<string>> Convert2DCellArrayTo2DList(Cell[,] field)
     {
         List<List<string>> result = new List<List<string>>();
 
@@ -47,6 +50,7 @@ public class MinessweeperService : IMinessweeperService
 
         return result;
     }
+
     public GameResponse StartNewGame(int width, int height, int count_mines)
     {
         if (width > MaxFieldSize || height > MaxFieldSize)
@@ -59,39 +63,37 @@ public class MinessweeperService : IMinessweeperService
 
         Game newGame = new Game(width, height, count_mines, InitField(width, height, count_mines));
 
-        _games[newGame.game_id] = newGame;
+        _cache.Set(newGame.GameId, newGame, TimeSpan.FromDays(1));        
 
         return
             new GameResponse
             {
-                game_id = newGame.game_id,
-                width = newGame.width,
-                height = newGame.height,
-                mines_count = newGame.mines_count,
-                field = Convert2DCellArrayTo2DList(newGame.field),
-                completed = newGame.completed
+                GameId = newGame.GameId,
+                Width = newGame.Width,
+                Height = newGame.Height,
+                MinesCount = newGame.Mines_count,
+                Field = Convert2DCellArrayTo2DList(newGame.Field),
+                Completed = newGame.Completed
             };
-
     }
+
     private Cell[,] InitField(int width, int height, int count_mines)
     {
         var field = new Cell[height, width];
         for (int i = 0; i < height; i++)
             for (int j = 0; j < width; j++)
             {
-                field[i, j] = new Cell { Value = '0', Opened = false };                
+                field[i, j] = new Cell { Value = '0', Opened = false };
             }
 
         Random random = new Random();
-
-        int randomX;
-        int randomY;
+        
         width--;//тк массив от 0 до 9 при длине 10
         height--;
         while (count_mines > 0)
         {
-            randomX = random.Next(width);
-            randomY = random.Next(height);
+            int randomX = random.Next(width);
+            int randomY = random.Next(height);
             if (field[randomX, randomY].Value != 'X')
             {
                 field[randomX, randomY].Value = 'X';
@@ -101,21 +103,11 @@ public class MinessweeperService : IMinessweeperService
         }
         return field;
     }
-    public void CalculateDigitsAroundMine(int width, int height, Cell[,] field, int x, int y)
+
+    private void CalculateDigitsAroundMine(int width, int height, Cell[,] field, int x, int y)
     {
-        var directions = new (int dx, int dy)[]
-        {
-            (0, 1),   // Вправо
-            (-1, 1),  // Вверх-вправо
-            (1, 1),   // Вниз-вправо
-            (-1, 0),  // Вверх
-            (1, 0),   // Вниз
-            (0, -1),  // Влево
-            (1, -1),  // Вниз-влево
-            (-1, -1)  // Вверх-влево
-        };
         // Проходим по всем соседним клеткам
-        foreach (var (dx, dy) in directions)
+        foreach (var (dx, dy) in Directions)
         {
             int newX = x + dx;
             int newY = y + dy;
@@ -130,58 +122,56 @@ public class MinessweeperService : IMinessweeperService
 
     public GameResponse GameTurn(Guid gameId, int col, int row)
     {
-        if (!_games.ContainsKey(gameId))
+        if (!_cache.TryGetValue(gameId, out Game game))
+        {
             throw new ArgumentException("Игра не найдена");
+        }             
 
-        var game = _games[gameId];
-        if (game.completed)
+        if (game.Completed)
             throw new ArgumentException("Игра завершена");
 
-        var turnedChar = game.field[row, col];
+        var turnedChar = game.Field[row, col];
         if (turnedChar.Opened)
             throw new ArgumentException("Ячейка уже открыта");
 
         if (turnedChar.Value == 'X')
         {
-            game.completed = true;
-            prepareWinOrLoseField(game.field);
+            game.Completed = true;
+            PrepareWinOrLoseField(game.Field);
         }
 
         if (turnedChar.Value != '0')
         {
             turnedChar.Opened = true;
-            game.countNotOpenedCell = game.countNotOpenedCell - 1;
+            game.CountNotOpenedCell = game.CountNotOpenedCell - 1;
         }
         else
             OpenThisAndAround(row, col, game);
 
-        if (game.countNotOpenedCell == 0)
+        if (game.CountNotOpenedCell == 0)
         {
-            game.completed = true;
-            prepareWinOrLoseField(game.field,true);
+            game.Completed = true;
+            PrepareWinOrLoseField(game.Field, true);
             //открыть всё поле
         }
 
         return
           new GameResponse
           {
-              game_id = game.game_id,
-              width = game.width,
-              height = game.height,
-              mines_count = game.mines_count,
-              field = Convert2DCellArrayTo2DList(game.field),
-              completed = game.completed
+              GameId = game.GameId,
+              Width = game.Width,
+              Height = game.Height,
+              MinesCount = game.Mines_count,
+              Field = Convert2DCellArrayTo2DList(game.Field),
+              Completed = game.Completed
           };
     }
-    public void OpenThisAndAround(int row, int col, Game game)
-    {
-        int width = game.width - 1;
-        int height = game.height - 1;
-        var field = game.field;
 
-        //// Проверка границ поля и состояния ячейки
-        //if (col < 0 || col > width || row < 0 || row > height || field[col, row].Opened)
-        //    return;
+    private void OpenThisAndAround(int row, int col, Game game)
+    {
+        int width = game.Width - 1;
+        int height = game.Height - 1;
+        var field = game.Field;
 
         var currentCell = field[row, col];
 
@@ -189,24 +179,11 @@ public class MinessweeperService : IMinessweeperService
         if (!currentCell.Opened)
         {
             currentCell.Opened = true;
-            game.countNotOpenedCell = game.countNotOpenedCell - 1;
+            game.CountNotOpenedCell = game.CountNotOpenedCell - 1;
         }
 
-        // Направления для соседних ячеек
-        var directions = new (int dx, int dy)[]
-        {
-        (0, 1),   // вниз
-        (0, -1),  // вверх
-        (1, 0),   // вправо
-        (-1, 0),  // влево
-        (1, 1),   // вправо-вниз
-        (1, -1),  // вправо-вверх
-        (-1, 1),  // влево-вниз
-        (-1, -1)  // влево-вверх
-        };
-
         // Рекурсивно обрабатываем соседей
-        foreach (var (dx, dy) in directions)
+        foreach (var (dx, dy) in Directions)
         {
             int newX = col + dx;
             int newY = row + dy;
@@ -215,27 +192,23 @@ public class MinessweeperService : IMinessweeperService
             {
                 var neighbor = field[newY, newX];
 
-                if (!neighbor.Opened)
+                //проваливаемся дальше, если снова ноль, если нет, то открываем цифру(если это цифра)
+                if (!neighbor.Opened && neighbor.Value == '0')
+                    OpenThisAndAround(newY, newX, game);
+                else
                 {
-                    //проваливаемся дальше, если снова ноль, если нет, то открываем цифру(если это цифра)
-                    if (neighbor.Value == '0')
-                        OpenThisAndAround(newY, newX, game);
-                    else
+                    if (!neighbor.Opened && neighbor.Value != 'X')
                     {
-                        if (neighbor.Value != 'X')
-                        {
-                            neighbor.Opened = true;
-                            game.countNotOpenedCell = game.countNotOpenedCell - 1;
-                        }
+                        neighbor.Opened = true;
+                        game.CountNotOpenedCell = game.CountNotOpenedCell - 1;
                     }
-
-
                 }
 
             }
         }
     }
-    public char IncrementChar(char ch)
+
+    private char IncrementChar(char ch)
     {
         // Если символ является цифрой, увеличиваем его на 1
         if (ch >= '0' && ch <= '7')
@@ -245,7 +218,7 @@ public class MinessweeperService : IMinessweeperService
         return ' ';  // Для остальных случаев возвращаем пробел
     }
 
-    public void prepareWinOrLoseField(Cell[,] field, bool finishByMine=false)
+    private void PrepareWinOrLoseField(Cell[,] field, bool finishByMine = false)
     {
         foreach (var row in field)
         {
@@ -255,6 +228,5 @@ public class MinessweeperService : IMinessweeperService
                     row.Value = 'M';
         }
     }
-
 }
 

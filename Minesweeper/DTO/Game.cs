@@ -2,24 +2,24 @@
 
 public class Game
 {
-    public Guid game_id { get; set; }
-    public int width { get; set; }
-    public int height { get; set; }
-    public int mines_count { get; set; }
-    public Cell[,] field {  get; set; }
-    public int countNotOpenedCell { get; set; }
-    public bool completed { get; set; }
+    public Guid GameId { get; set; }
+    public int Width { get; set; }
+    public int Height { get; set; }
+    public int Mines_count { get; set; }
+    public Cell[,] Field {  get; set; }
+    public int CountNotOpenedCell { get; set; }
+    public bool Completed { get; set; }
     public DateTime DateAdd { get; set; }
 
     public Game(int width, int height, int mines_count, Cell[,] field)
     {
-        game_id = Guid.NewGuid();
-        this.width = width;
-        this.height = height;
-        this.mines_count= mines_count;
-        this.field = field;
-        completed = false;
-        countNotOpenedCell = width * height - mines_count;
+        GameId = Guid.NewGuid();
+        this.Width = width;
+        this.Height = height;
+        this.Mines_count= mines_count;
+        this.Field = field;
+        Completed = false;
+        CountNotOpenedCell = width * height - mines_count;
         DateAdd = DateTime.UtcNow;
     }    
 }

@@ -1,21 +1,27 @@
-using Minesweeper;
 using Minesweeper.DTO;
+using Minesweeper.Services;
+using Newtonsoft.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
-services.AddControllers();
+
+services.AddControllers()
+    .AddNewtonsoftJson(options =>
+    {
+        options.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
+    });
 services.AddEndpointsApiExplorer();
 services.AddSwaggerGen();
-builder.Services.AddSingleton<IMinessweeperService, MinessweeperService>();
+services.AddMemoryCache();
+services.AddSingleton<IMinessweeperService, MinessweeperService>();
 
-services.AddSingleton<Dictionary<Guid, Game>>();  
-services.AddHostedService<GameCleanupService>();
+services.AddSingleton<Dictionary<Guid, Game>>(); 
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowSpecificOrigin", policy =>
     {
-        policy.WithOrigins("https://minesweeper-test.studiotg.ru") // Разрешаем только этот домен
+        policy.WithOrigins("https://minesweeper-test.studiotg.ru")
               .AllowAnyHeader()
               .AllowAnyMethod();
     });

@@ -1,11 +1,23 @@
-﻿namespace Minesweeper.DTO;
+﻿using Newtonsoft.Json;
+namespace Minesweeper.DTO;
 
 public class GameResponse
 {
-    public Guid game_id { get; set; }
-    public int width { get; set; }
-    public int height { get; set; }
-    public int mines_count { get; set; }
-    public List<List<string>> field { get; set; }
-    public bool completed { get; set; }
+    [JsonProperty("game_id")]
+    public Guid GameId { get; set; }
+
+    [JsonProperty("width")]
+    public int Width { get; set; }
+
+    [JsonProperty("height")]
+    public int Height { get; set; }
+
+    [JsonProperty("mines_count")]
+    public int MinesCount { get; set; }
+
+    [JsonProperty("field")]
+    public List<List<string>> Field { get; set; }
+
+    [JsonProperty("completed")]
+    public bool Completed { get; set; }
 }
