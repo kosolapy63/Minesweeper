@@ -10,8 +10,9 @@ namespace Minesweeper.Controllers
     public class MinesweeperController : ControllerBase
     {
         private readonly IMinessweeperService _minessweeperService;
-        public MinesweeperController(IMinessweeperService minessweeperService ) {
-            _minessweeperService= minessweeperService;
+        public MinesweeperController(IMinessweeperService minessweeperService)
+        {
+            _minessweeperService = minessweeperService;
         }
         // GET: api/<MinesweeperController>
         [HttpPost]
@@ -33,16 +34,17 @@ namespace Minesweeper.Controllers
         }
         [HttpPost]
         [Route("/turn")]
-        public ActionResult<GameResponse>  Turn([FromBody] GameTurnRequest request)
+        public ActionResult<GameResponse> Turn([FromBody] GameTurnRequest request)
         {
             try
             {
                 return Ok(_minessweeperService.GameTurn(request.game_id, request.col, request.row));
-        }
+            }
             catch (ArgumentException ex)
             {
-                return BadRequest(new { error = ex.Message
-    });
+                return BadRequest(new               {
+                    error = ex.Message
+                });
             }
             catch (Exception ex)
             {

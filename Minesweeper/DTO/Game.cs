@@ -7,11 +7,10 @@ public class Game
     public int height { get; set; }
     public int mines_count { get; set; }
     public Cell[,] field {  get; set; }
-    //public char[,] fieldOpened { get; set; }
-   // public char[,] fieldCalculated { get; set; }
     public int countNotOpenedCell { get; set; }
     public bool completed { get; set; }
-    
+    public DateTime DateAdd { get; set; }
+
     public Game(int width, int height, int mines_count, Cell[,] field)
     {
         game_id = Guid.NewGuid();
@@ -19,10 +18,9 @@ public class Game
         this.height = height;
         this.mines_count= mines_count;
         this.field = field;
-        //this.fieldCalculated = fieldCalculated;
-        //fieldOpened = new char[width,height];
         completed = false;
         countNotOpenedCell = width * height - mines_count;
+        DateAdd = DateTime.UtcNow;
     }    
 }
 

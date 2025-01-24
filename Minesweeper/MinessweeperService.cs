@@ -13,7 +13,15 @@ public interface IMinessweeperService
 
 public class MinessweeperService : IMinessweeperService
 {
-    private Dictionary<Guid, Game> _games = new Dictionary<Guid, Game>();
+    private const int MaxFieldSize = 30;
+    private const int MinFieldSize = 2;
+    private readonly Dictionary<Guid, Game> _games;
+
+    public MinessweeperService(Dictionary<Guid, Game> games)
+    {
+        _games = games;
+    }
+
     public List<List<string>> Convert2DCellArrayTo2DList(Cell[,] field)
     {
         List<List<string>> result = new List<List<string>>();
@@ -41,8 +49,11 @@ public class MinessweeperService : IMinessweeperService
     }
     public GameResponse StartNewGame(int width, int height, int count_mines)
     {
-        if (width > 30 || height > 30)
+        if (width > MaxFieldSize || height > MaxFieldSize)
             throw new ArgumentException("Max map size 30x30");
+        if (width < MinFieldSize || height < MinFieldSize)
+            throw new ArgumentException("Min map size 2x2");
+
         if (count_mines > width * height - 1)
             throw new ArgumentException("Number of mines > width * height-1");
 
@@ -68,9 +79,7 @@ public class MinessweeperService : IMinessweeperService
         for (int i = 0; i < height; i++)
             for (int j = 0; j < width; j++)
             {
-                field[i, j] = new Cell();
-                field[i, j].Value = '0';
-                field[i, j].Opened = false;
+                field[i, j] = new Cell { Value = '0', Opened = false };                
             }
 
         Random random = new Random();

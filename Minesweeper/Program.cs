@@ -1,4 +1,5 @@
 using Minesweeper;
+using Minesweeper.DTO;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -6,6 +7,9 @@ services.AddControllers();
 services.AddEndpointsApiExplorer();
 services.AddSwaggerGen();
 builder.Services.AddSingleton<IMinessweeperService, MinessweeperService>();
+
+services.AddSingleton<Dictionary<Guid, Game>>();  
+services.AddHostedService<GameCleanupService>();
 
 builder.Services.AddCors(options =>
 {
